@@ -21,7 +21,7 @@ from services.database_service import (
     updateChatRecord,
 )
 from utils.response_builder import ResponseBuilder
-from utils.pycrypto import decrypt
+from utils.pycrypto import decrypt,encrypt
 from utils.limiter import limiter
 from langchain_google_genai import ChatGoogleGenerativeAI
 from utils.langchain import GeminiDocumentRAG
@@ -63,11 +63,12 @@ async def langchainChatCompletion(
 
     if doc_rag is not None:
         answer = doc_rag.get_answer(text)
+        text=encrypt(answer)
         return (
                 ResponseBuilder()
                 .setSuccess(True)
                 .setMessage("Response generated from uploaded document")
-                .setData(answer)
+                .setData(text)
                 .setStatusCode(200)
                 .build()
             )

@@ -20,8 +20,7 @@ export const getResponseFromLangchainChatApiCall = async (body) => {
 
 export const uploadDocumentApiCall = async (formData) => {
   try {
-
-    const res = await axios.post(
+    return await axios.post(
       `${baseURL}/upload-doc`,
       formData,
       {
