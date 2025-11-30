@@ -24,10 +24,13 @@ from utils.response_builder import ResponseBuilder
 from utils.pycrypto import decrypt
 from utils.limiter import limiter
 from langchain_google_genai import ChatGoogleGenerativeAI
+from utils.langchain import GeminiDocumentRAG
 
 # Initialize
 router = APIRouter()
 load_dotenv()
+
+doc_rag = None
 
 # API Keys
 genai.configure(api_key=GEMINI_API_KEY)
@@ -38,6 +41,7 @@ genai.configure(api_key=GEMINI_API_KEY)
 async def langchainChatCompletion(
     request: Request, body: langchainCompletionRequestSchema
 ):
+    global doc_rag
 
     text = body.text
     model = body.model
@@ -54,10 +58,46 @@ async def langchainChatCompletion(
             .build()
         )
 
+    # Decrypt the incoming text
     text = decrypt(text)
 
+    if doc_rag is not None:
+        answer = doc_rag.get_answer(text)
+        return (
+                ResponseBuilder()
+                .setSuccess(True)
+                .setMessage("Response generated from uploaded document")
+                .setData(answer)
+                .setStatusCode(200)
+                .build()
+            )
+    
     langchainModel = ChatGoogleGenerativeAI(model=model, api_key=GEMINI_API_KEY)
     return getLangchainResponse(langchainModel, text, model, chatId)
+
+import os 
+@router.post("/upload-doc")
+async def upload_doc(request: Request, file: UploadFile = File(...)):
+    global doc_rag
+
+    try:
+        # Save file
+        base_dir = "uploads"
+        os.makedirs(base_dir, exist_ok=True)
+
+        file_path = os.path.join(base_dir, file.filename)
+
+        with open(file_path, "wb") as f:
+            f.write(await file.read())
+
+        # Build Gemini RAG for this document
+        doc_rag = GeminiDocumentRAG(model="gemini-2.5-flash")
+        doc_rag.load_document(file_path)
+
+        return ResponseBuilder().setSuccess(True).setMessage("Document processed successfully").build()
+
+    except Exception as e:
+        return ResponseBuilder().setSuccess(False).setMessage("Error").setError(str(e)).build()
 
 
 @router.post("/transcribe")
