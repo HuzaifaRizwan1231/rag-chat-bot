@@ -1,3 +1,4 @@
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.graph import START, MessagesState, StateGraph
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
@@ -5,9 +6,15 @@ from langchain_core.vectorstores import InMemoryVectorStore
 from langchain_core.documents import Document
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from sentence_transformers import SentenceTransformer
+
+# Load a pre-trained model
+
 from langchain import hub
 from typing_extensions import TypedDict, List
 import os
+
+from server.src.app.config.config import GEMINI_API_KEY
 
 def initializeAppWorkflow(langchainModel):
     
@@ -44,8 +51,9 @@ class MergestackLangchainAssistant:
         
         if not self.initialized:
             # Select model and embeddings
-            llm = ChatOpenAI(model=model)
-            embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
+            llm = ChatGoogleGenerativeAI(model=model, api_key=GEMINI_API_KEY)
+            embeddings = SentenceTransformer("Qwen/Qwen3-Embedding-0.6B")
+
             
             # Load the PDF
             base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
