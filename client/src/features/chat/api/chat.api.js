@@ -19,21 +19,23 @@ export const getResponseFromLangchainChatApiCall = async (body) => {
 };
 
 export const uploadDocumentApiCall = async (formData) => {
-  try {
-    return await axios.post(
-      `${baseURL}/upload-doc`,
-      formData,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      }
-    );
+  const jsonChat = localStorage.getItem("selectedChat");
+  const chatId = JSON.parse(jsonChat).id;
+  formData.append("chatId", chatId ?? "");
 
+  try {
+    const response = await axios.post(`${baseURL}/upload-doc`, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    return response;
   } catch (err) {
     console.log(err);
   }
+
 };
+
 
 export const trancribeAudioApiCall = async (formData) => {
   try {

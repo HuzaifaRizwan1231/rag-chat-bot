@@ -30,7 +30,8 @@ from utils.langchain import GeminiDocumentRAG
 router = APIRouter()
 load_dotenv()
 
-doc_rag = None
+doc_rags = {}  
+
 
 # API Keys
 genai.configure(api_key=GEMINI_API_KEY)
@@ -41,7 +42,6 @@ genai.configure(api_key=GEMINI_API_KEY)
 async def langchainChatCompletion(
     request: Request, body: langchainCompletionRequestSchema
 ):
-    global doc_rag
 
     text = body.text
     model = body.model
@@ -61,45 +61,37 @@ async def langchainChatCompletion(
     # Decrypt the incoming text
     text = decrypt(text)
 
-    if doc_rag is not None:
+    if chatId in doc_rags:
+        doc_rag = doc_rags[chatId]
         answer = doc_rag.get_answer(text)
-        text=encrypt(answer)
-        return (
-                ResponseBuilder()
-                .setSuccess(True)
-                .setMessage("Response generated from uploaded document")
-                .setData(text)
-                .setStatusCode(200)
-                .build()
-            )
+        return ResponseBuilder().setSuccess(True).setMessage("Response from uploaded document").setData(encrypt(answer)).build()
+
     
     langchainModel = ChatGoogleGenerativeAI(model=model, api_key=GEMINI_API_KEY)
     return getLangchainResponse(langchainModel, text, model, chatId)
 
 import os 
-@router.post("/upload-doc")
-async def upload_doc(request: Request, file: UploadFile = File(...)):
-    global doc_rag
+from fastapi import File, UploadFile, Form
 
+@router.post("/upload-doc")
+async def upload_doc(file: UploadFile = File(...), chatId: int = Form(...)):
     try:
-        # Save file
         base_dir = "uploads"
         os.makedirs(base_dir, exist_ok=True)
 
         file_path = os.path.join(base_dir, file.filename)
-
         with open(file_path, "wb") as f:
             f.write(await file.read())
-
-        # Build Gemini RAG for this document
+        print(chatId)
+        # Create RAG instance per chatId
         doc_rag = GeminiDocumentRAG(model="gemini-2.5-flash")
         doc_rag.load_document(file_path)
+        doc_rags[chatId] = doc_rag
 
         return ResponseBuilder().setSuccess(True).setMessage("Document processed successfully").build()
 
     except Exception as e:
         return ResponseBuilder().setSuccess(False).setMessage("Error").setError(str(e)).build()
-
 
 @router.post("/transcribe")
 @limiter.limit("50/minute")
