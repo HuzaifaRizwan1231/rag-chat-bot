@@ -4,7 +4,6 @@ import {
   deleteChatApiCall,
   getAllChatsApiCall,
   getResponseFromLangchainChatApiCall,
-  trancribeAudioApiCall,
   updateChatApiCall,
 } from "../api/chat.api";
 import {
@@ -40,16 +39,12 @@ export const useChatInterface = () => {
   const [selectedModel, setSelectedModel] = useState(
     modelOptions.filter((option) => option.enable)[0].value
   );
-  const [recording, setRecording] = useState(false);
-  const [transcribing, setTranscribing] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
   const [chats, setChats] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
 
   // Refs
   const messageListRef = useRef(null);
-  const mediaRecorderRef = useRef(null);
-  const lastMessageRef = useRef(null);
 
   // Handlers
   const scrollToBottom = () => {
@@ -97,39 +92,6 @@ export const useChatInterface = () => {
     insertMessage(responseMessage);
     setLoading(false);
   };
-
-  const handleAudioRecording = () => {
-    if (recording) {
-      setTranscribing(true);
-      mediaRecorderRef.current.stop();
-    } else {
-      navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
-        mediaRecorderRef.current = new MediaRecorder(stream);
-        mediaRecorderRef.current.ondataavailable = handleAudioData;
-        mediaRecorderRef.current.start();
-      });
-    }
-    setRecording(!recording);
-  };
-
-  const handleAudioData = (event) => {
-    const audioBlob = event.data;
-    const formData = new FormData();
-    formData.append("audio", audioBlob, "recording.wav");
-    sendAudio(formData);
-  };
-
-  const sendAudio = async (formData) => {
-    setTranscribing(true);
-    const response = await trancribeAudioApiCall(formData);
-    if (response.success) {
-      setTranscribing(false);
-      handleSendMessage(response.data);
-    } else {
-      console.error(response);
-    }
-  };
-
   const toggleDarkMode = () => {
     setDarkMode((prevMode) => {
       const newMode = !prevMode;
@@ -276,9 +238,6 @@ export const useChatInterface = () => {
     selectedModel,
     setSelectedModel,
     modelOptions,
-    handleAudioRecording,
-    recording,
-    transcribing,
     chats,
     handleCreateNewChat,
     handleSelectChat,

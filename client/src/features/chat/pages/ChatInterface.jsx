@@ -23,9 +23,6 @@ const ChatInterface = () => {
     selectedModel,
     setSelectedModel,
     modelOptions,
-    handleAudioRecording,
-    recording,
-    transcribing,
     chats,
     handleCreateNewChat,
     handleSelectChat,
@@ -78,7 +75,6 @@ const ChatInterface = () => {
                 selectedChat={selectedChat}
                 isCollapsed={isCollapsed}
                 loading={loading}
-                transcribing={transcribing}
                 messages={messages}
                 ref={messageListRef}
                 selectedModel={selectedModel}
@@ -86,11 +82,8 @@ const ChatInterface = () => {
               {selectedChat && (
                 <InputArea
                   isCollapsed={isCollapsed}
-                  handleAudioRecording={handleAudioRecording}
-                  recording={recording}
                   loading={loading}
                   onSendMessage={handleSendMessage}
-                  transcribing={transcribing}
                 />
               )}
             </motion.div>

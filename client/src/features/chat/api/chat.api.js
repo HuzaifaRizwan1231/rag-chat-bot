@@ -33,19 +33,6 @@ export const uploadDocumentApiCall = async (formData) => {
   } catch (err) {
     console.log(err);
   }
-
-};
-
-
-export const trancribeAudioApiCall = async (formData) => {
-  try {
-    const response = await axios.post(`${baseURL}/transcribe`, formData);
-    response.data.data &&
-      (response.data.data = decryptData(response.data.data));
-    return response.data;
-  } catch (e) {
-    return e;
-  }
 };
 
 export const createNewChatApiCall = async () => {
