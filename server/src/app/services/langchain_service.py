@@ -90,7 +90,7 @@ def getLangchainRAGResponse(model, text, chatId):
             answer = doc_rags[chatId].get_answer(text, chatId)
 
         elif model == "gemini-crag" and chatId in doc_crags:
-            answer = doc_crags[chatId].get_answer(text)
+            answer = doc_crags[chatId].get_answer(text, chatId)
 
         else:
             answer = "No document found for this chat. Please upload a document first."

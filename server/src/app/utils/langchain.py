@@ -115,6 +115,11 @@ Provide the best answer.
         return response["messages"][-1].content
 
 
+class CRAGState(MessagesState):
+    context: list
+    web_context: str
+
+
 class GeminiDocumentCRAG:
     def __init__(self, model="gemini-2.5-flash"):
         self.llm = ChatGoogleGenerativeAI(model=model, api_key=GEMINI_API_KEY)
@@ -180,53 +185,65 @@ Respond ONLY with a number between 0 and 1.
 
     def build_graph(self):
 
-        class State(TypedDict):
-            question: str
-            context: List[Document]
-            web_context: str
-            answer: str
+        def retrieve(state: CRAGState):
+            question = state["messages"][-1].content
+            docs = self.vector_store.similarity_search(question)
+            relevance = self.judge_relevance(question, docs)
 
-        def retrieve(state: State):
-            docs = self.vector_store.similarity_search(state["question"])
-
-            relevance = self.judge_relevance(state["question"], docs)
-
-            print("Relevance Score:", relevance)
+            print(f"Relevance score: {relevance}")
 
             if relevance < 0.2:
                 return {"context": [], "web_context": "USE_WEB"}
             else:
                 return {"context": docs, "web_context": ""}
 
-        def web_lookup(state: State):
+        def web_lookup(state: CRAGState):
+            question = state["messages"][-1].content
+
             if state["web_context"] == "USE_WEB":
-                result = self.web_search(state["question"])
+                result = self.web_search(question)
                 return {"web_context": result}
+
             return state
 
-        def generate(state: State):
+        def generate(state: CRAGState):
+            # --- Build chat history ---
+            history = "\n".join(
+                f"{('user' if isinstance(msg, HumanMessage) else 'assistant')}: {msg.content}"
+                for msg in state["messages"][
+                    :-1
+                ]  # everything except latest user question
+            )
+
+            current_question = state["messages"][-1].content
+
+            # --- Build context ---
             if state["context"]:
-                # RAG answer
                 ctx = "\n\n".join([d.page_content for d in state["context"]])
             else:
-                # fallback to web search
                 ctx = state["web_context"]
 
+            # --- Final prompt ---
             prompt = f"""
-Use the provided context to answer the question.
-If answer is not in context, say:
-"Information not available."
+You are a helpful assistant.
 
-Question:
-{state['question']}
+# Chat History:
+{history}
 
-Context:
+# Context:
 {ctx}
+
+# User Question:
+{current_question}
+
+Answer using BOTH chat history and context.
+If neither contains the answer, reply:
+"Information not available."
 """
             response = self.llm.invoke(prompt)
-            return {"answer": response.content}
+            return {"messages": [AIMessage(content=response.content)]}
 
-        graph = StateGraph(State)
+        graph = StateGraph(CRAGState)
         graph.add_node("retrieve", retrieve)
         graph.add_node("web_lookup", web_lookup)
         graph.add_node("generate", generate)
@@ -235,7 +252,11 @@ Context:
         graph.add_edge("retrieve", "web_lookup")
         graph.add_edge("web_lookup", "generate")
 
-        self.graph = graph.compile()
+        memory = MemorySaver()
+        self.graph = graph.compile(checkpointer=memory)
 
-    def get_answer(self, question):
-        return self.graph.invoke({"question": question})["answer"]
+    def get_answer(self, question, thread_id):
+        return self.graph.invoke(
+            {"messages": [HumanMessage(content=question)]},
+            {"configurable": {"thread_id": str(thread_id)}},
+        )["messages"][-1].content
