@@ -9,7 +9,6 @@ from schemas.chat_schema import (
     langchainCompletionRequestSchema,
     updateChatRequestSchema,
 )
-from services.assemblyai_service import assemblyaiTranscribe
 from services.langchain_service import (
     getLangchainResponse,
 )
@@ -106,25 +105,6 @@ async def upload_doc(file: UploadFile = File(...), chatId: int = Form(...)):
             .setSuccess(False)
             .setMessage("Error")
             .setError(str(e))
-            .build()
-        )
-
-
-@router.post("/transcribe")
-@limiter.limit("50/minute")
-async def transcribe(request: Request, audio: UploadFile = File(...)):
-    try:
-        # Process the uploaded audio file
-        audioContent = await audio.read()
-        # Send the audio content as a file
-        return assemblyaiTranscribe(audioContent)
-    except Exception as e:
-        return (
-            ResponseBuilder()
-            .setSuccess(False)
-            .setMessage("An Error Occurred")
-            .setError(str(e))
-            .setStatusCode(500)
             .build()
         )
 

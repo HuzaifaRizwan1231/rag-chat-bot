@@ -1,3 +1,4 @@
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.graph import START, MessagesState, StateGraph
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.vectorstores import InMemoryVectorStore
