@@ -26,6 +26,16 @@ export const useChatInterface = () => {
       label: "Gemini",
       enable: true,
     },
+    {
+      value: "gemini-rag",
+      label: "Gemini RAG",
+      enable: true,
+    },
+    {
+      value: "gemini-crag",
+      label: "Gemini CRAG",
+      enable: true,
+    },
   ];
   const [selectedModel, setSelectedModel] = useState(
     modelOptions.filter((option) => option.enable)[0].value

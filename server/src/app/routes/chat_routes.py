@@ -11,6 +11,8 @@ from schemas.chat_schema import (
 )
 from services.langchain_service import (
     getLangchainResponse,
+    createLangchainRAGInstance,
+    getLangchainRAGResponse,
 )
 from services.database_service import (
     insertChat,
@@ -22,17 +24,15 @@ from utils.response_builder import ResponseBuilder
 from utils.pycrypto import decrypt, encrypt
 from utils.limiter import limiter
 from langchain_google_genai import ChatGoogleGenerativeAI
-from utils.langchain import GeminiDocumentRAG
+import os
 
 # Initialize
 router = APIRouter()
 load_dotenv()
 
-doc_rags = {}
-
-
 # API Keys
 genai.configure(api_key=GEMINI_API_KEY)
+os.environ["GOOGLE_API_KEY"] = GEMINI_API_KEY
 
 
 @router.post("/langchain-completion")
@@ -57,56 +57,27 @@ async def langchainChatCompletion(
     # Decrypt the incoming text
     text = decrypt(text)
 
-    # Check if there's a document RAG for this chatId
-    if chatId in doc_rags:
-        doc_rag = doc_rags[chatId]
-        answer = doc_rag.get_answer(text)
-        return (
-            ResponseBuilder()
-            .setSuccess(True)
-            .setMessage("Response from uploaded document")
-            .setData(encrypt(answer))
-            .build()
-        )
+    if model in ["gemini-rag", "gemini-crag"]:
+        return getLangchainRAGResponse(model, text, chatId)
 
     # Generic Langchain response
     langchainModel = ChatGoogleGenerativeAI(model=model, api_key=GEMINI_API_KEY)
-    return getLangchainResponse(langchainModel, text, model, chatId)
+    return getLangchainResponse(langchainModel, text, chatId)
 
 
 @router.post("/upload-doc")
 async def upload_doc(file: UploadFile = File(...), chatId: int = Form(...)):
-    try:
-        # Save the uploaded file
-        base_dir = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "..", "..", "uploads")
-        )
-        os.makedirs(base_dir, exist_ok=True)
-        file_path = os.path.join(base_dir, file.filename)
+    # Save the uploaded file
+    base_dir = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "..", "uploads")
+    )
+    os.makedirs(base_dir, exist_ok=True)
+    file_path = os.path.join(base_dir, file.filename)
 
-        with open(file_path, "wb") as f:
-            f.write(await file.read())
+    with open(file_path, "wb") as f:
+        f.write(await file.read())
 
-        # Create RAG instance per chatId
-        doc_rag = GeminiDocumentRAG(model="gemini-2.5-flash")
-        doc_rag.load_document(file_path)
-        doc_rags[chatId] = doc_rag
-
-        return (
-            ResponseBuilder()
-            .setSuccess(True)
-            .setMessage("Document processed successfully")
-            .build()
-        )
-
-    except Exception as e:
-        return (
-            ResponseBuilder()
-            .setSuccess(False)
-            .setMessage("Error")
-            .setError(str(e))
-            .build()
-        )
+    return createLangchainRAGInstance(chatId, file_path)
 
 
 @router.post("/create")

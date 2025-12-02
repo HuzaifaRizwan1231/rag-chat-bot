@@ -1,10 +1,12 @@
 from utils.response_builder import ResponseBuilder
 from config.db_config import DatabaseConnection
 
+db = DatabaseConnection()
+
 
 def insertChat():
 
-    conn = DatabaseConnection().create_connection()
+    conn = db.get_connection()
     cursor = conn.cursor()
 
     try:
@@ -53,7 +55,7 @@ def insertChat():
 
 def getAllChats():
 
-    conn = DatabaseConnection().create_connection()
+    conn = db.get_connection()
     cursor = conn.cursor()
 
     try:
@@ -95,7 +97,7 @@ def getAllChats():
 
 def getAllMessagesOfChat(chatId):
 
-    conn = DatabaseConnection().create_connection()
+    conn = db.get_connection()
     cursor = conn.cursor()
 
     try:
@@ -138,7 +140,7 @@ def getAllMessagesOfChat(chatId):
 
 def insertMessage(message):
 
-    conn = DatabaseConnection().create_connection()
+    conn = db.get_connection()
     cursor = conn.cursor()
 
     try:
@@ -179,7 +181,7 @@ def insertMessage(message):
 
 def deleteChatRecord(chatId):
 
-    conn = DatabaseConnection().create_connection()
+    conn = db.get_connection()
     cursor = conn.cursor()
 
     try:
@@ -216,7 +218,7 @@ def deleteChatRecord(chatId):
 
 def updateChatRecord(body):
 
-    conn = DatabaseConnection().create_connection()
+    conn = db.get_connection()
     cursor = conn.cursor()
 
     title = body.title

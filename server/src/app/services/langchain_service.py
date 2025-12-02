@@ -1,13 +1,16 @@
 from langchain_core.messages import HumanMessage
 from utils.response_builder import ResponseBuilder
 from utils.pycrypto import encrypt
-from utils.langchain import initializeAppWorkflow, MergestackLangchainAssistant
+from utils.langchain import GeminiDocumentRAG
+from utils.langchain import initializeAppWorkflow
 
 app = None
+doc_rags = {}
+doc_crags = {}
 
 
-def getLangchainResponse(langchainModel, text, modelName, chatId):
-    global app, currentModelName
+def getLangchainResponse(langchainModel, text, chatId):
+    global app
     try:
         # Initialize the workflow
         if app is None:
@@ -42,19 +45,21 @@ def getLangchainResponse(langchainModel, text, modelName, chatId):
         return response
 
 
-def getLangchainResponseMergestack(modelName, text):
+def createLangchainRAGInstance(chatId, file_path):
     try:
+        global doc_rags, doc_crags
 
-        mergestackAssistant = MergestackLangchainAssistant(modelName)
+        # Create RAG instance per chatId
+        doc_rag = GeminiDocumentRAG(model="gemini-2.5-flash")
+        doc_rag.load_document(file_path)
+        doc_rags[chatId] = doc_rag
 
-        response = mergestackAssistant.getResponse(text)
-        print(response)
-        # returning the response
+        # Create CRAG Instance
+
         return (
             ResponseBuilder()
             .setSuccess(True)
-            .setMessage("Response Generated Successfully")
-            .setData(encrypt(response))
+            .setMessage("Document Processed Successfully")
             .setStatusCode(200)
             .build()
         )
@@ -63,7 +68,45 @@ def getLangchainResponseMergestack(modelName, text):
         response = (
             ResponseBuilder()
             .setSuccess(False)
-            .setMessage("An Error Occured")
+            .setMessage("An Error Occured while creating RAG instance")
+            .setError(str(e))
+            .setStatusCode(500)
+            .build()
+        )
+        # Logging the error
+        print(response)
+        return response
+
+
+def getLangchainRAGResponse(model, text, chatId):
+    try:
+        global doc_rags, doc_crags
+        answer = ""
+
+        if model == "gemini-rag" and chatId in doc_rags:
+            answer = doc_rags[chatId].get_answer(text)
+
+        elif model == "gemini-crag" and chatId in doc_crags:
+            # answer = doc_crags[chatId].get_answer(text)
+            answer = "CRAG model response placeholder."
+
+        else:
+            answer = "No document found for this chat. Please upload a document first."
+
+        return (
+            ResponseBuilder()
+            .setSuccess(True)
+            .setMessage("Response from uploaded document")
+            .setData(encrypt(answer))
+            .setStatusCode(200)
+            .build()
+        )
+
+    except Exception as e:
+        response = (
+            ResponseBuilder()
+            .setSuccess(False)
+            .setMessage("An Error Occurred while fetching RAG response")
             .setError(str(e))
             .setStatusCode(500)
             .build()

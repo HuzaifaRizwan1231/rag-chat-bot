@@ -14,7 +14,7 @@ AES_SECRET_KEY = os.getenv("AES_SECRET_KEY")
 AES_IV = os.getenv("AES_IV")
 
 # Allowed Models
-ALLOWED_GEMINI_MODELS = ["gemini-2.5-flash"]
+ALLOWED_GEMINI_MODELS = ["gemini-2.5-flash", "gemini-rag", "gemini-crag"]
 
 # GEMINI model configs
 MAX_OUTPUT_TOKENS = 500
