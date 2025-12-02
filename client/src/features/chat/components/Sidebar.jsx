@@ -12,6 +12,7 @@ const Sidebar = ({
   isCollapsed,
   toggleCollapse,
   handleDeleteChat,
+  allChatsLoading,
 }) => {
   // Sort chats in descending order by date
   const sortedChats = [...chats].sort(
@@ -53,23 +54,43 @@ const Sidebar = ({
           </div>
 
           <div className="space-y-2 text-sm">
-            {sortedChats.map((chat, index) => {
-              const showLabel =
-                index === 0 ||
-                getLabel(chat.created_at) !==
-                  getLabel(sortedChats[index - 1].created_at);
-              return (
-                <SidebarItem
-                  key={index}
-                  handleDeleteChat={handleDeleteChat}
-                  chat={chat}
-                  getLabel={getLabel}
-                  handleSelectChat={handleSelectChat}
-                  showLabel={showLabel}
-                  selectedChat={selectedChat}
-                />
-              );
-            })}
+            {allChatsLoading ? (
+              <div className="animate-pulse">
+                {/* Label skeleton */}
+                <div className="h-4 w-20 rounded bg-primaryColorLight dark:bg-primaryColorDark mb-2 mx-2"></div>
+
+                {/* Chat item skeleton */}
+                <div className="flex justify-between items-center p-2 rounded-lg bg-secondaryColorLight dark:bg-secondaryColorDark">
+                  {/* Left title block */}
+                  <div className="flex-1">
+                    <div className="h-4 w-32 bg-primaryColorLight dark:bg-primaryColorDark rounded"></div>
+                  </div>
+
+                  {/* Right dots icon placeholder */}
+                  <div className="ml-2">
+                    <div className="h-5 w-5 bg-primaryColorLight dark:bg-primaryColorDark rounded-full"></div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              sortedChats.map((chat, index) => {
+                const showLabel =
+                  index === 0 ||
+                  getLabel(chat.created_at) !==
+                    getLabel(sortedChats[index - 1].created_at);
+                return (
+                  <SidebarItem
+                    key={index}
+                    handleDeleteChat={handleDeleteChat}
+                    chat={chat}
+                    getLabel={getLabel}
+                    handleSelectChat={handleSelectChat}
+                    showLabel={showLabel}
+                    selectedChat={selectedChat}
+                  />
+                );
+              })
+            )}
           </div>
         </div>
       </>

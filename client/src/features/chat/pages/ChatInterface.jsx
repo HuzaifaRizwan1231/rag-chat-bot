@@ -29,12 +29,14 @@ const ChatInterface = () => {
     selectedChat,
     handleDeleteChat,
     chatLoading,
+    allChatsLoading,
   } = useChatInterface();
 
   return (
     <>
       <div className="flex h-screen">
         <Sidebar
+          allChatsLoading={allChatsLoading}
           handleDeleteChat={handleDeleteChat}
           isCollapsed={isCollapsed}
           selectedChat={selectedChat}

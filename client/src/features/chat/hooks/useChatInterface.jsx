@@ -42,6 +42,7 @@ export const useChatInterface = () => {
   const [chatLoading, setChatLoading] = useState(false);
   const [chats, setChats] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
+  const [allChatsLoading, setAllChatsLoading] = useState(false);
 
   // Refs
   const messageListRef = useRef(null);
@@ -187,12 +188,14 @@ export const useChatInterface = () => {
   };
 
   const getAllChats = async () => {
+    setAllChatsLoading(true);
     const response = await getAllChatsApiCall();
     if (response.success) {
       setChats(response.data);
     } else {
       console.error(response);
     }
+    setAllChatsLoading(false);
   };
 
   const insertMessage = async (message) => {
@@ -245,5 +248,6 @@ export const useChatInterface = () => {
     handleDeleteChat,
     chatLoading,
     setChatLoading,
+    allChatsLoading,
   };
 };
