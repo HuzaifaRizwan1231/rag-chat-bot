@@ -68,11 +68,8 @@ const InputArea = ({ onSendMessage, loading, isCollapsed }) => {
         className="hidden"
         onChange={handleDocumentUpload}
       />
-      {uploadDocumentStatus && (
-        <p className="text-xs text-center !text-white">
-          {uploadDocumentStatus}
-        </p>
-      )}
+
+      <p className={`text-xs text-center text-white`}>{uploadDocumentStatus}</p>
     </motion.div>
   );
 };

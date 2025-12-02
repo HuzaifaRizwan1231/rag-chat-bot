@@ -56,9 +56,12 @@ export const useInputArea = (onSendMessage, loading) => {
     setUploadDocumentLoading(true);
     const response = await uploadDocumentApiCall(formData);
     console.log(response.data.message);
-    
-    if(response.data.success) {
+
+    if (response.data.success) {
       setUploadDocumentStatus(response.data.message);
+      setTimeout(() => {
+        setUploadDocumentStatus(null);
+      }, 3000);
     }
     setUploadDocumentLoading(false);
   };
@@ -70,6 +73,6 @@ export const useInputArea = (onSendMessage, loading) => {
     handleInputChange,
     handleDocumentUpload,
     uploadDocumentLoading,
-    uploadDocumentStatus
+    uploadDocumentStatus,
   };
 };
