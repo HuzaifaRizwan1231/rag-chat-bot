@@ -25,6 +25,10 @@ app.add_middleware(
     allow_headers=["*"], 
 )
 
+@app.get("/")
+async def root():
+    return {"message": "Server is running!"}
+
 # Routes
 app.include_router(chat_routes.router, prefix="/api/chat")
 app.include_router(message_routes.router, prefix="/api/message")

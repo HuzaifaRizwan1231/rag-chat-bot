@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { uploadDocumentApiCall } from "../api/chat.api";
 
 export const useInputArea = (onSendMessage, loading) => {
   // States
   const [input, setInput] = useState("");
   const [rows, setRows] = useState(1);
-
+  const [uploadDocumentLoading, setUploadDocumentLoading] = useState(false);
+  const [uploadDocumentStatus, setUploadDocumentStatus] = useState(null);
   // Handlers
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -45,11 +47,29 @@ export const useInputArea = (onSendMessage, loading) => {
     setInput(e.target.value);
   };
 
+  const handleDocumentUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+    setUploadDocumentLoading(true);
+    const response = await uploadDocumentApiCall(formData);
+    console.log(response.data.message);
+    
+    if(response.data.success) {
+      setUploadDocumentStatus(response.data.message);
+    }
+    setUploadDocumentLoading(false);
+  };
   return {
     input,
     rows,
     handleSubmit,
     handleKeyDown,
     handleInputChange,
+    handleDocumentUpload,
+    uploadDocumentLoading,
+    uploadDocumentStatus
   };
 };
