@@ -87,7 +87,7 @@ def getLangchainRAGResponse(model, text, chatId):
         answer = ""
 
         if model == "gemini-rag" and chatId in doc_rags:
-            answer = doc_rags[chatId].get_answer(text)
+            answer = doc_rags[chatId].get_answer(text, chatId)
 
         elif model == "gemini-crag" and chatId in doc_crags:
             answer = doc_crags[chatId].get_answer(text)

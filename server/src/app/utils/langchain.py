@@ -1,6 +1,7 @@
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.graph import START, MessagesState, StateGraph
 from langgraph.checkpoint.memory import MemorySaver
+from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.vectorstores import InMemoryVectorStore
 from langchain_core.documents import Document
 from langchain_community.document_loaders import PyPDFLoader
@@ -53,42 +54,65 @@ class GeminiDocumentRAG:
         self.build_graph()
 
     def build_graph(self):
-        prompt = """Use ONLY the provided document context to answer.
-        If answer is not found, say 'Information not available in uploaded document.'
+        def retrieve_and_generate(state: MessagesState):
+            history = "\n".join(
+                f"{('user' if isinstance(msg, HumanMessage) else 'assistant')}: {msg.content}"
+                for msg in state["messages"][
+                    :-1
+                ]  # everything except latest user question
+            )
 
-        Question:
-        {question}
+            user_message = state["messages"][-1].content
 
-        Context:
-        {context}
-        """
+            # 1. Retrieve PDF chunks
+            docs = self.vector_store.similarity_search(user_message)
+            context = "\n\n".join([d.page_content for d in docs])
 
-        class State(TypedDict):
-            question: str
-            context: List[Document]
-            answer: str
+            # 2. Build prompt
+            prompt = f"""
+You are a chatbot with two sources of information:
+1. The user's conversation history
+2. The uploaded document context
 
-        def retrieve(state: State):
-            docs = self.vector_store.similarity_search(state["question"])
-            return {"context": docs}
+RULES:
+- If the user's question is about the document, answer using ONLY the document context.
+- If the user's question is about the conversation, memory, previous messages, or is general chat, IGNORE the document and answer normally.
+- If the question is about the document but the answer is not present in the document, say:
+  "Information not available in uploaded document."
 
-        def generate(state: State):
-            ctx = "\n\n".join([d.page_content for d in state["context"]])
-            final_prompt = prompt.format(question=state["question"], context=ctx)
+Conversation History:
+{history}
 
-            response = self.llm.invoke(final_prompt)
-            return {"answer": response.content}
+Document Context:
+{context}
 
-        graph = StateGraph(State)
-        graph.add_node("retrieve", retrieve)
-        graph.add_node("generate", generate)
-        graph.add_edge(START, "retrieve")
-        graph.add_edge("retrieve", "generate")
+User Question:
+{user_message}
 
-        self.graph = graph.compile()
+Provide the best answer.
+"""
 
-    def get_answer(self, question):
-        return self.graph.invoke({"question": question})["answer"]
+            # 3. LLM call
+            response = self.llm.invoke(prompt)
+
+            # 4. Append assistant message to history
+            return {"messages": [AIMessage(response.content)]}
+
+        graph = StateGraph(MessagesState)
+        graph.add_node("rag", retrieve_and_generate)
+        graph.add_edge(START, "rag")
+
+        memory = MemorySaver()
+
+        self.graph = graph.compile(checkpointer=memory)
+
+    def get_answer(self, text, chatId):
+        input_messages = [HumanMessage(text)]
+        config = {"configurable": {"thread_id": str(chatId)}}
+
+        response = self.graph.invoke({"messages": input_messages}, config)
+
+        return response["messages"][-1].content
 
 
 class GeminiDocumentCRAG:
