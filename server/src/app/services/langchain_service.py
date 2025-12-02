@@ -1,7 +1,7 @@
 from langchain_core.messages import HumanMessage
 from utils.response_builder import ResponseBuilder
 from utils.pycrypto import encrypt
-from utils.langchain import GeminiDocumentRAG
+from utils.langchain import GeminiDocumentRAG, GeminiDocumentCRAG
 from utils.langchain import initializeAppWorkflow
 
 app = None
@@ -55,6 +55,9 @@ def createLangchainRAGInstance(chatId, file_path):
         doc_rags[chatId] = doc_rag
 
         # Create CRAG Instance
+        doc_crag = GeminiDocumentCRAG(model="gemini-2.5-flash")
+        doc_crag.load_document(file_path)
+        doc_crags[chatId] = doc_crag
 
         return (
             ResponseBuilder()
@@ -87,8 +90,7 @@ def getLangchainRAGResponse(model, text, chatId):
             answer = doc_rags[chatId].get_answer(text)
 
         elif model == "gemini-crag" and chatId in doc_crags:
-            # answer = doc_crags[chatId].get_answer(text)
-            answer = "CRAG model response placeholder."
+            answer = doc_crags[chatId].get_answer(text)
 
         else:
             answer = "No document found for this chat. Please upload a document first."

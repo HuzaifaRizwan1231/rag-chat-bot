@@ -8,9 +8,8 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_google_genai import ChatGoogleGenerativeAI
 from typing_extensions import TypedDict, List
-from config.config import (
-    GEMINI_API_KEY,
-)
+from config.config import GEMINI_API_KEY, TAVILY_API_KEY
+import requests
 
 
 def initializeAppWorkflow(langchainModel):
@@ -30,10 +29,8 @@ def initializeAppWorkflow(langchainModel):
 
 
 class GeminiDocumentRAG:
-    def __init__(self, model="gemini-1.5-flash"):
-        self.llm = ChatGoogleGenerativeAI(
-            model="gemini-2.5-flash", api_key=GEMINI_API_KEY
-        )
+    def __init__(self, model="gemini-2.5-flash"):
+        self.llm = ChatGoogleGenerativeAI(model=model, api_key=GEMINI_API_KEY)
         self.embeddings = GoogleGenerativeAIEmbeddings(
             model="models/text-embedding-004"  # ✔ Works with API key
         )
@@ -87,6 +84,132 @@ class GeminiDocumentRAG:
         graph.add_node("generate", generate)
         graph.add_edge(START, "retrieve")
         graph.add_edge("retrieve", "generate")
+
+        self.graph = graph.compile()
+
+    def get_answer(self, question):
+        return self.graph.invoke({"question": question})["answer"]
+
+
+class GeminiDocumentCRAG:
+    def __init__(self, model="gemini-2.5-flash"):
+        self.llm = ChatGoogleGenerativeAI(model=model, api_key=GEMINI_API_KEY)
+        self.embeddings = GoogleGenerativeAIEmbeddings(
+            model="models/text-embedding-004"
+        )
+        self.vector_store = None
+        self.graph = None
+
+    def load_document(self, file_path):
+        loader = PyPDFLoader(file_path)
+        docs = loader.load()
+
+        splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+        chunks = splitter.split_documents(docs)
+
+        self.vector_store = InMemoryVectorStore.from_documents(chunks, self.embeddings)
+
+        self.build_graph()
+
+    def judge_relevance(self, question, docs):
+        if not docs:
+            return 0.0
+
+        scores = []
+
+        for d in docs:
+            prompt = f"""
+You are an AI relevance judge.
+Given the question and the retrieved text chunk, rate relevance from 0 to 1.
+
+Question: {question}
+
+Chunk:
+{d.page_content}
+
+Respond ONLY with a number between 0 and 1.
+"""
+            res = self.llm.invoke(prompt).content.strip()
+
+            # Convert string → float safely
+            try:
+                score = float(res)
+            except:
+                score = 0.0
+
+            scores.append(score)
+
+        return sum(scores) / len(scores)
+
+    def web_search(self, query):
+
+        url = "https://api.tavily.com/search"
+        payload = {"api_key": TAVILY_API_KEY, "query": query, "max_results": 5}
+
+        try:
+            response = requests.post(url, json=payload).json()
+            results = "\n\n".join([r["content"] for r in response.get("results", [])])
+        except:
+            results = ""
+
+        return results or "No relevant info found on the web."
+
+    def build_graph(self):
+
+        class State(TypedDict):
+            question: str
+            context: List[Document]
+            web_context: str
+            answer: str
+
+        def retrieve(state: State):
+            docs = self.vector_store.similarity_search(state["question"])
+
+            relevance = self.judge_relevance(state["question"], docs)
+
+            print("Relevance Score:", relevance)
+
+            if relevance < 0.2:
+                return {"context": [], "web_context": "USE_WEB"}
+            else:
+                return {"context": docs, "web_context": ""}
+
+        def web_lookup(state: State):
+            if state["web_context"] == "USE_WEB":
+                result = self.web_search(state["question"])
+                return {"web_context": result}
+            return state
+
+        def generate(state: State):
+            if state["context"]:
+                # RAG answer
+                ctx = "\n\n".join([d.page_content for d in state["context"]])
+            else:
+                # fallback to web search
+                ctx = state["web_context"]
+
+            prompt = f"""
+Use the provided context to answer the question.
+If answer is not in context, say:
+"Information not available."
+
+Question:
+{state['question']}
+
+Context:
+{ctx}
+"""
+            response = self.llm.invoke(prompt)
+            return {"answer": response.content}
+
+        graph = StateGraph(State)
+        graph.add_node("retrieve", retrieve)
+        graph.add_node("web_lookup", web_lookup)
+        graph.add_node("generate", generate)
+
+        graph.add_edge(START, "retrieve")
+        graph.add_edge("retrieve", "web_lookup")
+        graph.add_edge("web_lookup", "generate")
 
         self.graph = graph.compile()
 
